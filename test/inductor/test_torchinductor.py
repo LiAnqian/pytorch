@@ -2869,7 +2869,7 @@ class CommonTemplate:
         )
 
     @skipIfPy312  # segfaults
-    @config.patch(force_mixed_mm=True)
+    @config.patch(force_mixed_mm="autotune")
     def test_mixed_mm(self):
         def fn(a, b):
             return torch.mm(a, b.to(a.dtype))
@@ -2884,7 +2884,7 @@ class CommonTemplate:
         )
 
     @skipIfPy312  # segfaults
-    @config.patch(force_mixed_mm=True)
+    @config.patch(force_mixed_mm="autotune")
     def test_mixed_mm2(self):
         def fn(a, b, scale, bias):
             return torch.mm(a, b.to(a.dtype)) * scale + bias
@@ -2901,7 +2901,7 @@ class CommonTemplate:
         )
 
     @skipIfPy312  # segfaults
-    @config.patch(force_mixed_mm=True)
+    @config.patch(force_mixed_mm="autotune")
     def test_mixed_mm3(self):
         def fn(a, b):
             return torch.mm(a, b.to(a.dtype))
