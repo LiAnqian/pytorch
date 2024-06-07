@@ -146,6 +146,7 @@ class FunctionalTensor(torch.Tensor):
         return out
 
     def __torch_dispatch__(self, func, types, args=(), kwargs=None):
+        breakpoint()
         unrecognized_types = [
             t
             for t in types
@@ -313,6 +314,7 @@ class FunctionalTensorMode(TorchDispatchMode):
             super().__exit__(a, b, c)
 
     def __torch_dispatch__(self, func, types, args=(), kwargs=None):
+        print("FUNC TENSOR dispatched", func)
         if kwargs is None:
             kwargs = {}
 
@@ -419,6 +421,7 @@ class FunctionalTensorMode(TorchDispatchMode):
                 self._allow_token_discovery, self._tokens, func, args, kwargs
             )
 
+        print("FUNC TENSOR after effet", func)
         args_unwrapped, kwargs_unwrapped = pytree.tree_map_only(
             FunctionalTensor, unwrap, (args, kwargs)
         )
@@ -464,6 +467,7 @@ class FunctionalTensorMode(TorchDispatchMode):
                     # FunctionalTensorMode. If we call func() directly, we would need to exclude PreDispatch
                     # from the TLS in order to avoid infinite looping, but this would prevent us from coming
                     # back to PreDispatch later
+                    # breakpoint()
                     outs_unwrapped = func._op_dk(
                         torch._C.DispatchKey.Functionalize,
                         *args_unwrapped,

@@ -597,6 +597,10 @@ def get_cached_ops():
 # Each OpOverload object contains pointer to a a specific operator overload, a pointer to the parent `OpOverloadPacket` object.
 # You can obtain an OpOverload object through attribute query on OpOverloadPacket.
 class OpOverload(OperatorBase):
+    def lets_print(self, log):
+        if "_local_scalar_dense" in str(self._schema):
+            print(log)
+
     def __init__(self, overloadpacket, op, op_dk, schema, tags):
         super().__init__()
         self._op = op
@@ -663,6 +667,7 @@ class OpOverload(OperatorBase):
     def __call__(self_, *args, **kwargs):  # noqa: B902
         # use `self_` to avoid naming collide with aten ops arguments that
         # are named "self". This way, all the aten ops can be called by kwargs.
+        self.lets_print(f"Call {args} {kwargs}")
         return self_._op(*args, **kwargs)
 
     def redispatch(self_, keyset, *args, **kwargs):  # noqa: B902
@@ -719,6 +724,7 @@ class OpOverload(OperatorBase):
     def _get_dispatch(self, key):
         # This is only called upon a cache miss
         assert key not in self._dispatch_cache, f"{self} {key}"
+        self.lets_print("_local_scalar_dense GET DISPATCH")
 
         if key == torch._C.DispatchKey.Python:
             if (

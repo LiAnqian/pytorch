@@ -1122,6 +1122,13 @@ class TestTracer(JitTestCase):
         FileCheck().check_not("device").run(b.code)
 
     def test_export_no_reorder(self):
+        # def func(a, b):
+        #     mul1 = a * b 
+        #     mul2 = 2 * b
+        #     a_minus = (a - mul2)
+        #     div = mul1 / a_minus
+        #     return div + b
+
         def func(a, b):
             return a * b / (a - 2 * b) + b
 
@@ -1135,15 +1142,20 @@ class TestTracer(JitTestCase):
         ]
 
         ge1 = torch.jit.trace(func, recording_inputs)
+        print(ge1.graph)
         ge2 = self.getExportImportCopy(ge1)
 
         outputs_ge1 = ge1(*recording_inputs)
         outputs_ge2 = ge2(*recording_inputs)
+        print("Step 1")
 
         grad_ge1 = torch.autograd.grad(outputs_ge1, recording_inputs)
         grad_ge2 = torch.autograd.grad(outputs_ge2, recording_inputs)
+        print("Step 2")
+
         self.assertTrue(outputs_ge1 == outputs_ge2)
         self.assertTrue(grad_ge1 == grad_ge2)
+        print("Step 3")
 
     def test_python_function(self):
         class MyFn(Function):
