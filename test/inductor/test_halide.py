@@ -48,7 +48,7 @@ class HalideTests(TestCase):
                         shape=["1024L"],
                     ),
                 ],
-                target="host",
+                target="host-no_runtime",
                 scheduler="Mullapudi2016",
                 scheduler_flags={
                     "parallelism": parallel_num_threads(),
