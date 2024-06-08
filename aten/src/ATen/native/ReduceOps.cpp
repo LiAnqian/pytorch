@@ -245,9 +245,10 @@ static void meta_func_cum_ops(
     const char* name,
     const Tensor& self,
     int64_t dim,
-    std::optional<ScalarType> dtype) {
+    std::optional<ScalarType> dtype,
+    bool prepend) {
   // Checking whether 'dim' is valid.
-  maybe_wrap_dim(dim, self.dim());
+  int64_t wrapped_dim = maybe_wrap_dim(dim, self.dim());
 
   const auto& result = meta.maybe_get_output();
   ScalarType out_dtype;
@@ -259,18 +260,23 @@ static void meta_func_cum_ops(
     out_dtype = dtype.value_or(is_integral ? ScalarType::Long : self.scalar_type());
   }
 
-  meta.set_output_raw_strided(0, self.sizes(), {}, self.options().dtype(out_dtype));
+  std::vector<int64_t> new_sizes(self.sizes().begin(), self.sizes().end());
+  if (prepend) {
+    new_sizes[wrapped_dim] += 1;
+  }
+
+  meta.set_output_raw_strided(0, new_sizes, {}, self.options().dtype(out_dtype));
   namedinference::propagate_names(result, self);
 }
 
 TORCH_META_FUNC(cumsum)
-(const Tensor& self, int64_t dim, std::optional<ScalarType> dtype) {
-  meta_func_cum_ops(*this, "cumsum", self, dim, dtype);
+(const Tensor& self, int64_t dim, std::optional<ScalarType> dtype, bool prepend) {
+  meta_func_cum_ops(*this, "cumsum", self, dim, dtype, prepend);
 }
 
 TORCH_META_FUNC(cumprod)
-(const Tensor& self, int64_t dim, std::optional<ScalarType> dtype) {
-  meta_func_cum_ops(*this, "cumprod", self, dim, dtype);
+(const Tensor& self, int64_t dim, std::optional<ScalarType> dtype, bool prepend) {
+  meta_func_cum_ops(*this, "cumprod", self, dim, dtype, prepend);
 }
 
 TORCH_META_FUNC2(sum, dim_IntList)
@@ -475,16 +481,20 @@ template <class Stub>
 void impl_func_cum_ops(
     const Tensor& self,
     int64_t dim,
+    bool prepend,
     const Tensor& result,
     Stub& stub) {
   NoNamesGuard guard;
+  if (prepend) {
+    TORCH_INTERNAL_ASSERT(false, "TODO implement prepend=True");
+  }
   if (self.dim() == 0) {
     result.fill_(self);
   } else if (self.numel() == 0) {
     result.zero_();
   } else {
     dim = maybe_wrap_dim(dim, self.dim());
-    stub(self.device().type(), result, self.to(result.scalar_type()), dim);
+    stub(self.device().type(), result, self.to(result.scalar_type()), dim, prepend);
   }
 }
 
@@ -492,23 +502,28 @@ TORCH_IMPL_FUNC(cumsum_out)
 (const Tensor& self,
  int64_t dim,
  std::optional<ScalarType> dtype,
+ bool prepend,
  const Tensor& result) {
-  impl_func_cum_ops(self, dim, result, cumsum_stub);
+  if (prepend) {
+    TORCH_INTERNAL_ASSERT(false, "TODO: implement support for prepend=True");
+  }
+  impl_func_cum_ops(self, dim, prepend, result, cumsum_stub);
 }
 
 TORCH_IMPL_FUNC(cumprod_out)
 (const Tensor& self,
  int64_t dim,
  std::optional<ScalarType> dtype,
+ bool prepend,
  const Tensor& result) {
-  impl_func_cum_ops(self, dim, result, cumprod_stub);
+  impl_func_cum_ops(self, dim, prepend, result, cumprod_stub);
 }
 
 static Tensor reversed_cumsum(const Tensor& w, int64_t dim) {
   return w.flip(dim).cumsum(dim).flip(dim);
 }
 
-Tensor cumprod_backward(const Tensor& grad, const Tensor& input, int64_t dim, const Tensor& output) {
+Tensor cumprod_backward(const Tensor& grad, const Tensor& input, int64_t dim, const Tensor& output, bool prepend) {
   /*
     We show here how to derive an O(n) gradient formula for
     arbitrary inputs. It follows via a basic application of the
@@ -595,6 +610,10 @@ Tensor cumprod_backward(const Tensor& grad, const Tensor& input, int64_t dim, co
     conjugating the input. We may also reuse the output as, since the map is holomorphic,
     cumprod(input.conj()) = cumprod(input).conj()
   */
+
+  if (prepend) {
+    TORCH_INTERNAL_ASSERT(false, "TODO implement prepend=True for cumprod_backward");
+  }
 
   if (input.sym_numel() <= 1) {
     return grad;
@@ -2167,23 +2186,23 @@ Tensor logcumsumexp(const Tensor& self, Dimname dim) {
 Tensor& logcumsumexp_out(const Tensor& self, Dimname dim, Tensor& result) {
   return at::logcumsumexp_out(result, self, dimname_to_position(self, dim));
 }
-Tensor cumsum(const Tensor& self, Dimname dim, std::optional<ScalarType> dtype) {
-  return at::cumsum(self, dimname_to_position(self, dim), dtype);
+Tensor cumsum(const Tensor& self, Dimname dim, std::optional<ScalarType> dtype, bool prepend) {
+  return at::cumsum(self, dimname_to_position(self, dim), dtype, prepend);
 }
-Tensor& cumsum_(Tensor& self, Dimname dim, std::optional<ScalarType> dtype) {
-  return at::cumsum_out(self, self, dimname_to_position(self, dim), dtype);
+Tensor& cumsum_(Tensor& self, Dimname dim, std::optional<ScalarType> dtype, bool prepend) {
+  return at::cumsum_out(self, self, dimname_to_position(self, dim), dtype, prepend);
 }
-Tensor& cumsum_out(const Tensor& self, Dimname dim, std::optional<ScalarType> dtype, Tensor& result) {
-  return at::cumsum_out(result, self, dimname_to_position(self, dim), dtype);
+Tensor& cumsum_out(const Tensor& self, Dimname dim, std::optional<ScalarType> dtype, bool prepend, Tensor& result) {
+  return at::cumsum_out(result, self, dimname_to_position(self, dim), dtype, prepend);
 }
-Tensor cumprod(const Tensor& self, Dimname dim, std::optional<ScalarType> dtype) {
-  return at::cumprod(self, dimname_to_position(self, dim), dtype);
+Tensor cumprod(const Tensor& self, Dimname dim, std::optional<ScalarType> dtype, bool prepend) {
+  return at::cumprod(self, dimname_to_position(self, dim), dtype, prepend);
 }
-Tensor& cumprod_(Tensor& self, Dimname dim, std::optional<ScalarType> dtype) {
-  return at::cumprod_out(self, self, dimname_to_position(self, dim), dtype);
+Tensor& cumprod_(Tensor& self, Dimname dim, std::optional<ScalarType> dtype, bool prepend) {
+  return at::cumprod_out(self, self, dimname_to_position(self, dim), dtype, prepend);
 }
-Tensor& cumprod_out(const Tensor& self, Dimname dim, std::optional<ScalarType> dtype, Tensor& result) {
-  return at::cumprod_out(result, self, dimname_to_position(self, dim), dtype);
+Tensor& cumprod_out(const Tensor& self, Dimname dim, std::optional<ScalarType> dtype, bool prepend, Tensor& result) {
+  return at::cumprod_out(result, self, dimname_to_position(self, dim), dtype, prepend);
 }
 std::tuple<Tensor, Tensor> cummax(const Tensor& self, Dimname dim) {
   return at::cummax(self, dimname_to_position(self, dim));

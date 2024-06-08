@@ -513,12 +513,12 @@
   self: logcumsumexp_backward(grad, self, result, dim)
   result: logcumsumexp_jvp(self_p, self_t, dim)
 
-- name: cumprod(Tensor self, int dim, *, ScalarType? dtype=None) -> Tensor
-  self: cumprod_backward(grad.to(self.scalar_type()), self, dim, result)
-  result: "cumprod_jvp(self_t, self_p, result, dim).to(dtype.has_value() ? *dtype : self_p.scalar_type())"
+- name: cumprod(Tensor self, int dim, *, ScalarType? dtype=None, bool prepend=False) -> Tensor
+  self: cumprod_backward(grad.to(self.scalar_type()), self, dim, result, prepend)
+  result: "cumprod_jvp(self_t, self_p, result, dim, prepend).to(dtype.has_value() ? *dtype : self_p.scalar_type())"
 
-- name: cumsum(Tensor self, int dim, *, ScalarType? dtype=None) -> Tensor
-  self: cumsum_backward(grad.to(self.scalar_type()), dim)
+- name: cumsum(Tensor self, int dim, *, ScalarType? dtype=None, bool prepend=False) -> Tensor
+  self: cumsum_backward(grad.to(self.scalar_type()), dim, prepend)
   result: auto_linear
 
 - name: cummax(Tensor self, int dim) -> (Tensor values, Tensor indices)
